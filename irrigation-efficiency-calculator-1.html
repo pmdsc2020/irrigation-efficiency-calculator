@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Project efficiency · Ep = Ec × Eb × Ea</title>
+<style>
+  :root {
+    --ink: #1c241c;
+    --muted: #5c675c;
+    --line: #d7d1c4;
+    --paper: #f4efe4;
+    --card: #fbf8f2;
+    --canal: #2f6f62;
+    --canal-deep: #1e4d45;
+    --water: #3d8f7e;
+    --loss: #c46a45;
+    --warn: #8a4b2f;
+    --chip: #ebe4d6;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Iowan Old Style", Palatino, "Palatino Linotype", Georgia, serif;
+    background:
+      radial-gradient(1200px 500px at 10% -10%, #efe6d4 0%, transparent 55%),
+      var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+  }
+  main {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 32px 20px 56px;
+  }
+  header { margin-bottom: 22px; }
+  .kicker {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--canal-deep);
+    margin: 0 0 8px;
+  }
+  h1 {
+    font-weight: 500;
+    font-size: 32px;
+    line-height: 1.15;
+    margin: 0 0 8px;
+    letter-spacing: -0.02em;
+  }
+  .lede {
+    margin: 0;
+    max-width: 62ch;
+    color: var(--muted);
+    font-size: 17px;
+    line-height: 1.45;
+  }
+  .eq {
+    margin: 18px 0 0;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 20px;
+    color: var(--canal-deep);
+  }
+  .eq span { color: var(--muted); font-size: 14px; margin-left: 10px; }
+  .grid {
+    display: grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap: 18px;
+    margin-top: 22px;
+  }
+  @media (max-width: 760px) {
+    .grid { grid-template-columns: 1fr; }
+    h1 { font-size: 26px; }
+  }
+  section {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px 16px 18px;
+  }
+  h2 {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin: 0 0 12px;
+    color: var(--muted);
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  .factor { margin-bottom: 16px; }
+  .factor:last-child { margin-bottom: 0; }
+  .factor-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .factor-head label { font-size: 16px; }
+  .factor-head small {
+    color: var(--muted);
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12px;
+  }
+  .note {
+    margin: 2px 0 8px;
+    color: var(--muted);
+    font-size: 13.5px;
+    line-height: 1.35;
+  }
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  input[type="range"] {
+    flex: 1;
+    accent-color: var(--canal);
+    height: 28px;
+    cursor: pointer;
+    touch-action: none;
+  }
+  input[type="number"] {
+    width: 84px;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 16px;
+    padding: 6px 8px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--ink);
+  }
+  .stepper {
+    display: flex;
+    gap: 4px;
+  }
+  .stepper button {
+    width: 28px;
+    height: 32px;
+    border: 1px solid var(--line);
+    background: #fff;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    color: var(--canal-deep);
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  button.chip, button.preset {
+    font-family: inherit;
+    font-size: 13px;
+    border: 1px solid var(--line);
+    background: var(--chip);
+    color: var(--ink);
+    border-radius: 999px;
+    padding: 5px 10px;
+    cursor: pointer;
+  }
+  button.chip[aria-pressed="true"], button.preset[aria-pressed="true"] {
+    background: var(--canal);
+    color: #f7f4ee;
+    border-color: var(--canal-deep);
+  }
+  button.preset { border-radius: 8px; }
+  .presets { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .stack { display: flex; flex-direction: column; gap: 10px; }
+  .stage {
+    display: grid;
+    grid-template-columns: 118px 1fr 72px;
+    gap: 8px;
+    align-items: center;
+  }
+  .stage .name { font-size: 13.5px; line-height: 1.2; }
+  .stage .name em {
+    display: block;
+    font-style: normal;
+    color: var(--muted);
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11px;
+  }
+  .bar {
+    height: 18px;
+    background: #ece6da;
+    border-radius: 999px;
+    overflow: hidden;
+    border: 1px solid #e3dccb;
+  }
+  .bar > i {
+    display: block;
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--canal-deep), var(--water));
+    border-radius: inherit;
+    transition: width 0.25s ease;
+  }
+  .stage .vol {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 13px;
+    text-align: right;
+  }
+  .result {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px dashed var(--line);
+  }
+  .ep {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 42px;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    margin: 0;
+  }
+  .ep small { font-size: 16px; color: var(--muted); margin-left: 6px; }
+  .sentence {
+    margin: 10px 0 0;
+    font-size: 16.5px;
+    line-height: 1.4;
+  }
+  .sentence strong { font-weight: 600; }
+  .lost {
+    margin: 8px 0 0;
+    color: var(--warn);
+    font-size: 14px;
+  }
+  .product {
+    margin: 10px 0 0;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  footer {
+    margin-top: 18px;
+    color: var(--muted);
+    font-size: 12.5px;
+    line-height: 1.45;
+  }
+  .release {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 4px 0 14px;
+  }
+  .release label, .release .unit {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12px;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <p class="kicker">Day 11 · Irrigation engineering · FAO Module 1, Ch. 3.2</p>
+    <h1>Project efficiency is not field application efficiency.</h1>
+    <p class="lede">Water leaves the headworks, travels the conveyance canal, passes the block inlet, then the field canal, then the field inlet, before it reaches the root zone. Each step has its own efficiency. They multiply.</p>
+    <p class="eq">Ep = Ec × Eb × Ea <span>decimals, not percent</span></p>
+  </header>
+
+  <div class="grid">
+    <section>
+      <h2>Factors</h2>
+
+      <div class="factor">
+        <div class="factor-head">
+          <label for="ec">Conveyance, Ec</label>
+          <small>headworks → block inlet</small>
+        </div>
+        <p class="note">Ratio of water received at the block inlet (or night storage) to water released at the headworks. Lined canals hold more than earthen ones; length and soil still matter.</p>
+        <div class="row">
+          <input id="ec" type="range" min="0.05" max="1" step="0.01" value="0.90" oninput="fromSlider('ec')" />
+          <input id="ec-n" type="number" min="0.05" max="1" step="0.01" value="0.90" oninput="fromNumber('ec')" onchange="tidyNumber('ec')" />
+          <span class="stepper">
+            <button type="button" onclick="nudge('ec', -0.01)" aria-label="Decrease conveyance">−</button>
+            <button type="button" onclick="nudge('ec', 0.01)" aria-label="Increase conveyance">+</button>
+          </span>
+        </div>
+        <div class="chips" data-target="ec">
+          <button class="chip" type="button" data-v="0.60">Earthen, sand, long · 0.60</button>
+          <button class="chip" type="button" data-v="0.80">Earthen, clay, long · 0.80</button>
+          <button class="chip" type="button" data-v="0.95">Lined, maintained · 0.95</button>
+        </div>
+      </div>
+
+      <div class="factor">
+        <div class="factor-head">
+          <label for="eb">Field canal, Eb</label>
+          <small>block inlet → field inlet</small>
+        </div>
+        <p class="note">Ratio of water received at the field inlet to water received at the block. Lining, canal length, and management.</p>
+        <div class="row">
+          <input id="eb" type="range" min="0.05" max="1" step="0.01" value="0.80" oninput="fromSlider('eb')" />
+          <input id="eb-n" type="number" min="0.05" max="1" step="0.01" value="0.80" oninput="fromNumber('eb')" onchange="tidyNumber('eb')" />
+          <span class="stepper">
+            <button type="button" onclick="nudge('eb', -0.01)" aria-label="Decrease field canal">−</button>
+            <button type="button" onclick="nudge('eb', 0.01)" aria-label="Increase field canal">+</button>
+          </span>
+        </div>
+      </div>
+
+      <div class="factor">
+        <div class="factor-head">
+          <label for="ea">Application, Ea</label>
+          <small>field inlet → root zone</small>
+        </div>
+        <p class="note">Use the local Ea. Surface shifts with soil and management — a textbook default is not the field.</p>
+        <div class="row">
+          <input id="ea" type="range" min="0.05" max="1" step="0.01" value="0.55" oninput="fromSlider('ea')" />
+          <input id="ea-n" type="number" min="0.05" max="1" step="0.01" value="0.55" oninput="fromNumber('ea')" onchange="tidyNumber('ea')" />
+          <span class="stepper">
+            <button type="button" onclick="nudge('ea', -0.01)" aria-label="Decrease application">−</button>
+            <button type="button" onclick="nudge('ea', 0.01)" aria-label="Increase application">+</button>
+          </span>
+        </div>
+        <div class="chips" id="methods">
+          <button class="chip" type="button" data-v="0.55" aria-pressed="true">Surface low · 0.55</button>
+          <button class="chip" type="button" data-v="0.70">Surface mid · 0.70</button>
+          <button class="chip" type="button" data-v="0.80">Surface high · 0.80</button>
+          <button class="chip" type="button" data-v="0.75">Sprinkler · 0.75</button>
+          <button class="chip" type="button" data-v="0.90">Localized · 0.90</button>
+        </div>
+      </div>
+
+      <div class="presets">
+        <button class="preset" type="button" id="ex-low" aria-pressed="true">Worked example · 0.90 × 0.80 × 0.55</button>
+        <button class="preset" type="button" id="ex-high">Same canals, Ea 0.80 · 0.90 × 0.80 × 0.80</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Water still in the system</h2>
+      <div class="release">
+        <label for="q">Released at headworks</label>
+        <input id="q" type="number" min="1" step="1" value="1000" />
+        <span class="unit">m³</span>
+      </div>
+      <div class="stack" id="stack"></div>
+      <div class="result">
+        <p class="ep" id="ep">0.40 <small>Ep</small></p>
+        <p class="sentence" id="sentence"></p>
+        <p class="lost" id="lost"></p>
+        <p class="product" id="product"></p>
+      </div>
+    </section>
+  </div>
+
+  <footer>
+    Indicative canal chips follow FAO adequately-maintained conveyance values (earthen sand/clay, long canals; lined). Application bands used here: surface 0.55–0.80, sprinkler 0.60–0.85, localized 0.85–0.95. FAO’s single indicative figures are surface 0.60, sprinkler 0.75, drip 0.90. Ep = Ec × Eb × Ea is the project (overall) efficiency: water made available to the crop over water released at the headworks.
+  </footer>
+</main>
+<script>
+  function clamp(v) {
+    v = Number(v);
+    if (!Number.isFinite(v)) return null;
+    return Math.min(1, Math.max(0.05, Math.round(v * 100) / 100));
+  }
+  function fmt(v) { return Number(v).toFixed(2); }
+  function vol(v) { return Math.round(v).toLocaleString("en-US"); }
+
+  function pair(id) {
+    return {
+      range: document.getElementById(id),
+      num: document.getElementById(id + "-n")
+    };
+  }
+
+  function fromSlider(id) {
+    const p = pair(id);
+    p.num.value = fmt(p.range.value);
+    render();
+  }
+
+  function fromNumber(id) {
+    const p = pair(id);
+    if (String(p.num.value).trim() === "") return;
+    const v = clamp(p.num.value);
+    if (v == null) return;
+    p.range.value = v;
+    render();
+  }
+
+  function tidyNumber(id) {
+    const p = pair(id);
+    const v = clamp(p.num.value);
+    p.num.value = fmt(v == null ? p.range.value : v);
+    if (v != null) p.range.value = v;
+    render();
+  }
+
+  function nudge(id, delta) {
+    const p = pair(id);
+    const v = clamp((Number(p.range.value) || 0) + delta);
+    p.range.value = v;
+    p.num.value = fmt(v);
+    render();
+  }
+
+  function setFactor(id, value) {
+    const v = clamp(value);
+    const p = pair(id);
+    p.range.value = v;
+    p.num.value = fmt(v);
+  }
+
+  function render() {
+    const Ec = clamp(pair("ec").range.value);
+    const Eb = clamp(pair("eb").range.value);
+    const Ea = clamp(pair("ea").range.value);
+    const qRaw = Number(document.getElementById("q").value);
+    const Q = Number.isFinite(qRaw) && qRaw > 0 ? qRaw : 1000;
+    const amounts = [1, Ec, Ec * Eb, Ec * Eb * Ea];
+    const stages = [
+      ["Released", "headworks"],
+      ["After conveyance", "Ec"],
+      ["At field inlet", "Ec × Eb"],
+      ["At the crop", "Ep"]
+    ];
+    document.getElementById("stack").innerHTML = stages.map((s, i) => {
+      const left = amounts[i] * Q;
+      return `<div class="stage">
+        <div class="name">${s[0]}<em>${s[1]}</em></div>
+        <div class="bar"><i style="width:${(amounts[i] * 100).toFixed(1)}%"></i></div>
+        <div class="vol">${vol(left)}</div>
+      </div>`;
+    }).join("");
+
+    const Ep = amounts[3];
+    document.getElementById("ep").innerHTML = `${fmt(Ep)} <small>Ep · ${(Ep * 100).toFixed(0)}%</small>`;
+    document.getElementById("sentence").innerHTML = fmt(Ep) === fmt(Ea)
+      ? `Application is <strong>${fmt(Ea)}</strong>, and with no upstream canal losses the scheme is also <strong>${fmt(Ep)}</strong>.`
+      : `Application is <strong>${fmt(Ea)}</strong>. The scheme is not ${(Ea * 100).toFixed(0)} percent efficient. It is <strong>${fmt(Ep)}</strong>, because the losses upstream never left the equation.`;
+    const reached = Math.round(Ep * Q);
+    const lostVol = Math.round(Q) - reached;
+    document.getElementById("lost").textContent = `${lostVol.toLocaleString("en-US")} m³ of the ${vol(Q)} m³ released does not reach the root zone; ${reached.toLocaleString("en-US")} m³ does.`;
+    document.getElementById("product").textContent = `${fmt(Ec)} × ${fmt(Eb)} × ${fmt(Ea)} = ${fmt(Ep)}`;
+    syncButtons(Ec, Eb, Ea);
+  }
+
+  // Keep chip and preset highlights in step with the actual values,
+  // whichever control (slider, box, stepper, chip, preset) changed them.
+  function syncButtons(Ec, Eb, Ea) {
+    document.querySelectorAll('.chips[data-target="ec"] button').forEach((b) =>
+      b.setAttribute("aria-pressed", fmt(b.dataset.v) === fmt(Ec) ? "true" : "false"));
+    document.querySelectorAll("#methods button").forEach((b) =>
+      b.setAttribute("aria-pressed", fmt(b.dataset.v) === fmt(Ea) ? "true" : "false"));
+    const presets = { "ex-low": [0.90, 0.80, 0.55], "ex-high": [0.90, 0.80, 0.80] };
+    Object.keys(presets).forEach((id) => {
+      const [a, b, c] = presets[id];
+      const on = fmt(a) === fmt(Ec) && fmt(b) === fmt(Eb) && fmt(c) === fmt(Ea);
+      document.getElementById(id).setAttribute("aria-pressed", on ? "true" : "false");
+    });
+  }
+
+  document.querySelectorAll(".chips").forEach((box) => {
+    box.addEventListener("click", (e) => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+      setFactor(box.dataset.target === "ec" ? "ec" : "ea", btn.dataset.v);
+      render();
+    });
+  });
+
+  function setExample(a, b, c) {
+    setFactor("ec", a);
+    setFactor("eb", b);
+    setFactor("ea", c);
+    render();
+  }
+  document.getElementById("ex-low").addEventListener("click", () => setExample(0.90, 0.80, 0.55));
+  document.getElementById("ex-high").addEventListener("click", () => setExample(0.90, 0.80, 0.80));
+  document.getElementById("q").addEventListener("input", render);
+  render();
+</script>
+</body>
+</html>
