@@ -239,7 +239,7 @@
     gap: 10px;
     margin: 4px 0 14px;
   }
-  .release label {
+  .release label, .release .unit {
     font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
     font-size: 12px;
     color: var(--muted);
@@ -266,8 +266,8 @@
         </div>
         <p class="note">Ratio of water received at the block inlet (or night storage) to water released at the headworks. Lined canals hold more than earthen ones; length and soil still matter.</p>
         <div class="row">
-          <input id="ec" type="range" min="0.40" max="1" step="0.01" value="0.90" oninput="fromSlider('ec')" />
-          <input id="ec-n" type="number" min="0.05" max="1" step="0.01" value="0.90" oninput="fromNumber('ec')" />
+          <input id="ec" type="range" min="0.05" max="1" step="0.01" value="0.90" oninput="fromSlider('ec')" />
+          <input id="ec-n" type="number" min="0.05" max="1" step="0.01" value="0.90" oninput="fromNumber('ec')" onchange="tidyNumber('ec')" />
           <span class="stepper">
             <button type="button" onclick="nudge('ec', -0.01)" aria-label="Decrease conveyance">−</button>
             <button type="button" onclick="nudge('ec', 0.01)" aria-label="Increase conveyance">+</button>
@@ -287,8 +287,8 @@
         </div>
         <p class="note">Ratio of water received at the field inlet to water received at the block. Lining, canal length, and management.</p>
         <div class="row">
-          <input id="eb" type="range" min="0.40" max="1" step="0.01" value="0.80" oninput="fromSlider('eb')" />
-          <input id="eb-n" type="number" min="0.05" max="1" step="0.01" value="0.80" oninput="fromNumber('eb')" />
+          <input id="eb" type="range" min="0.05" max="1" step="0.01" value="0.80" oninput="fromSlider('eb')" />
+          <input id="eb-n" type="number" min="0.05" max="1" step="0.01" value="0.80" oninput="fromNumber('eb')" onchange="tidyNumber('eb')" />
           <span class="stepper">
             <button type="button" onclick="nudge('eb', -0.01)" aria-label="Decrease field canal">−</button>
             <button type="button" onclick="nudge('eb', 0.01)" aria-label="Increase field canal">+</button>
@@ -303,8 +303,8 @@
         </div>
         <p class="note">Use the local Ea. Surface shifts with soil and management — a textbook default is not the field.</p>
         <div class="row">
-          <input id="ea" type="range" min="0.40" max="1" step="0.01" value="0.55" oninput="fromSlider('ea')" />
-          <input id="ea-n" type="number" min="0.05" max="1" step="0.01" value="0.55" oninput="fromNumber('ea')" />
+          <input id="ea" type="range" min="0.05" max="1" step="0.01" value="0.55" oninput="fromSlider('ea')" />
+          <input id="ea-n" type="number" min="0.05" max="1" step="0.01" value="0.55" oninput="fromNumber('ea')" onchange="tidyNumber('ea')" />
           <span class="stepper">
             <button type="button" onclick="nudge('ea', -0.01)" aria-label="Decrease application">−</button>
             <button type="button" onclick="nudge('ea', 0.01)" aria-label="Increase application">+</button>
@@ -320,8 +320,8 @@
       </div>
 
       <div class="presets">
-        <button class="preset" type="button" id="ex-low" aria-pressed="true">Lined example · 0.9 × 0.8 × 0.55</button>
-        <button class="preset" type="button" id="ex-high">Same canals, Ea 0.80</button>
+        <button class="preset" type="button" id="ex-low" aria-pressed="true">Worked example · 0.90 × 0.80 × 0.55</button>
+        <button class="preset" type="button" id="ex-high">Same canals, Ea 0.80 · 0.90 × 0.80 × 0.80</button>
       </div>
     </section>
 
@@ -330,7 +330,7 @@
       <div class="release">
         <label for="q">Released at headworks</label>
         <input id="q" type="number" min="1" step="1" value="1000" />
-        <label>m³</label>
+        <span class="unit">m³</span>
       </div>
       <div class="stack" id="stack"></div>
       <div class="result">
@@ -370,9 +370,18 @@
 
   function fromNumber(id) {
     const p = pair(id);
+    if (String(p.num.value).trim() === "") return;
     const v = clamp(p.num.value);
     if (v == null) return;
     p.range.value = v;
+    render();
+  }
+
+  function tidyNumber(id) {
+    const p = pair(id);
+    const v = clamp(p.num.value);
+    p.num.value = fmt(v == null ? p.range.value : v);
+    if (v != null) p.range.value = v;
     render();
   }
 
@@ -395,7 +404,8 @@
     const Ec = clamp(pair("ec").range.value);
     const Eb = clamp(pair("eb").range.value);
     const Ea = clamp(pair("ea").range.value);
-    const Q = Math.max(1, Number(document.getElementById("q").value) || 1000);
+    const qRaw = Number(document.getElementById("q").value);
+    const Q = Number.isFinite(qRaw) && qRaw > 0 ? qRaw : 1000;
     const amounts = [1, Ec, Ec * Eb, Ec * Eb * Ea];
     const stages = [
       ["Released", "headworks"],
@@ -414,37 +424,48 @@
 
     const Ep = amounts[3];
     document.getElementById("ep").innerHTML = `${fmt(Ep)} <small>Ep · ${(Ep * 100).toFixed(0)}%</small>`;
-    document.getElementById("sentence").innerHTML = `Application is <strong>${fmt(Ea)}</strong>. The scheme is not ${(Ea * 100).toFixed(0)} percent efficient. It is <strong>${fmt(Ep)}</strong>, because the losses upstream never left the equation.`;
-    document.getElementById("lost").textContent = `${vol(Q - Ep * Q)} m³ of the ${vol(Q)} m³ released does not reach the root zone.`;
+    document.getElementById("sentence").innerHTML = fmt(Ep) === fmt(Ea)
+      ? `Application is <strong>${fmt(Ea)}</strong>, and with no upstream canal losses the scheme is also <strong>${fmt(Ep)}</strong>.`
+      : `Application is <strong>${fmt(Ea)}</strong>. The scheme is not ${(Ea * 100).toFixed(0)} percent efficient. It is <strong>${fmt(Ep)}</strong>, because the losses upstream never left the equation.`;
+    const reached = Math.round(Ep * Q);
+    const lostVol = Math.round(Q) - reached;
+    document.getElementById("lost").textContent = `${lostVol.toLocaleString("en-US")} m³ of the ${vol(Q)} m³ released does not reach the root zone; ${reached.toLocaleString("en-US")} m³ does.`;
     document.getElementById("product").textContent = `${fmt(Ec)} × ${fmt(Eb)} × ${fmt(Ea)} = ${fmt(Ep)}`;
+    syncButtons(Ec, Eb, Ea);
+  }
+
+  // Keep chip and preset highlights in step with the actual values,
+  // whichever control (slider, box, stepper, chip, preset) changed them.
+  function syncButtons(Ec, Eb, Ea) {
+    document.querySelectorAll('.chips[data-target="ec"] button').forEach((b) =>
+      b.setAttribute("aria-pressed", fmt(b.dataset.v) === fmt(Ec) ? "true" : "false"));
+    document.querySelectorAll("#methods button").forEach((b) =>
+      b.setAttribute("aria-pressed", fmt(b.dataset.v) === fmt(Ea) ? "true" : "false"));
+    const presets = { "ex-low": [0.90, 0.80, 0.55], "ex-high": [0.90, 0.80, 0.80] };
+    Object.keys(presets).forEach((id) => {
+      const [a, b, c] = presets[id];
+      const on = fmt(a) === fmt(Ec) && fmt(b) === fmt(Eb) && fmt(c) === fmt(Ea);
+      document.getElementById(id).setAttribute("aria-pressed", on ? "true" : "false");
+    });
   }
 
   document.querySelectorAll(".chips").forEach((box) => {
     box.addEventListener("click", (e) => {
       const btn = e.target.closest("button");
       if (!btn) return;
-      if (box.dataset.target === "ec") setFactor("ec", btn.dataset.v);
-      else {
-        setFactor("ea", btn.dataset.v);
-        box.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b === btn ? "true" : "false"));
-      }
-      document.querySelectorAll(".preset").forEach((b) => b.setAttribute("aria-pressed", "false"));
+      setFactor(box.dataset.target === "ec" ? "ec" : "ea", btn.dataset.v);
       render();
     });
   });
 
-  function setExample(a, b, c, id) {
+  function setExample(a, b, c) {
     setFactor("ec", a);
     setFactor("eb", b);
     setFactor("ea", c);
-    document.querySelectorAll(".preset").forEach((btn) => btn.setAttribute("aria-pressed", btn.id === id ? "true" : "false"));
-    document.querySelectorAll("#methods button").forEach((btn) => {
-      btn.setAttribute("aria-pressed", Number(btn.dataset.v) === c ? "true" : "false");
-    });
     render();
   }
-  document.getElementById("ex-low").addEventListener("click", () => setExample(0.9, 0.8, 0.55, "ex-low"));
-  document.getElementById("ex-high").addEventListener("click", () => setExample(0.9, 0.8, 0.80, "ex-high"));
+  document.getElementById("ex-low").addEventListener("click", () => setExample(0.90, 0.80, 0.55));
+  document.getElementById("ex-high").addEventListener("click", () => setExample(0.90, 0.80, 0.80));
   document.getElementById("q").addEventListener("input", render);
   render();
 </script>
