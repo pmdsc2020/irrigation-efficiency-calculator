@@ -116,10 +116,12 @@
   input[type="range"] {
     flex: 1;
     accent-color: var(--canal);
-    height: 22px;
+    height: 28px;
+    cursor: pointer;
+    touch-action: none;
   }
   input[type="number"] {
-    width: 78px;
+    width: 84px;
     font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
     font-size: 16px;
     padding: 6px 8px;
@@ -127,6 +129,20 @@
     border-radius: 8px;
     background: #fff;
     color: var(--ink);
+  }
+  .stepper {
+    display: flex;
+    gap: 4px;
+  }
+  .stepper button {
+    width: 28px;
+    height: 32px;
+    border: 1px solid var(--line);
+    background: #fff;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    color: var(--canal-deep);
   }
   .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
   button.chip, button.preset {
@@ -250,8 +266,12 @@
         </div>
         <p class="note">Ratio of water received at the block inlet (or night storage) to water released at the headworks. Lined canals hold more than earthen ones; length and soil still matter.</p>
         <div class="row">
-          <input id="ec" type="range" min="0.40" max="1" step="0.01" value="0.90" />
-          <input id="ec-n" type="number" min="0.05" max="1" step="0.01" value="0.90" />
+          <input id="ec" type="range" min="0.40" max="1" step="0.01" value="0.90" oninput="fromSlider('ec')" />
+          <input id="ec-n" type="number" min="0.05" max="1" step="0.01" value="0.90" oninput="fromNumber('ec')" />
+          <span class="stepper">
+            <button type="button" onclick="nudge('ec', -0.01)" aria-label="Decrease conveyance">−</button>
+            <button type="button" onclick="nudge('ec', 0.01)" aria-label="Increase conveyance">+</button>
+          </span>
         </div>
         <div class="chips" data-target="ec">
           <button class="chip" type="button" data-v="0.60">Earthen, sand, long · 0.60</button>
@@ -267,8 +287,12 @@
         </div>
         <p class="note">Ratio of water received at the field inlet to water received at the block. Lining, canal length, and management.</p>
         <div class="row">
-          <input id="eb" type="range" min="0.40" max="1" step="0.01" value="0.80" />
-          <input id="eb-n" type="number" min="0.05" max="1" step="0.01" value="0.80" />
+          <input id="eb" type="range" min="0.40" max="1" step="0.01" value="0.80" oninput="fromSlider('eb')" />
+          <input id="eb-n" type="number" min="0.05" max="1" step="0.01" value="0.80" oninput="fromNumber('eb')" />
+          <span class="stepper">
+            <button type="button" onclick="nudge('eb', -0.01)" aria-label="Decrease field canal">−</button>
+            <button type="button" onclick="nudge('eb', 0.01)" aria-label="Increase field canal">+</button>
+          </span>
         </div>
       </div>
 
@@ -279,8 +303,12 @@
         </div>
         <p class="note">Use the local Ea. Surface shifts with soil and management — a textbook default is not the field.</p>
         <div class="row">
-          <input id="ea" type="range" min="0.40" max="1" step="0.01" value="0.55" />
-          <input id="ea-n" type="number" min="0.05" max="1" step="0.01" value="0.55" />
+          <input id="ea" type="range" min="0.40" max="1" step="0.01" value="0.55" oninput="fromSlider('ea')" />
+          <input id="ea-n" type="number" min="0.05" max="1" step="0.01" value="0.55" oninput="fromNumber('ea')" />
+          <span class="stepper">
+            <button type="button" onclick="nudge('ea', -0.01)" aria-label="Decrease application">−</button>
+            <button type="button" onclick="nudge('ea', 0.01)" aria-label="Increase application">+</button>
+          </span>
         </div>
         <div class="chips" id="methods">
           <button class="chip" type="button" data-v="0.55" aria-pressed="true">Surface low · 0.55</button>
@@ -319,86 +347,63 @@
   </footer>
 </main>
 <script>
-  const ec = document.getElementById("ec");
-  const eb = document.getElementById("eb");
-  const ea = document.getElementById("ea");
-  const ecN = document.getElementById("ec-n");
-  const ebN = document.getElementById("eb-n");
-  const eaN = document.getElementById("ea-n");
-  const q = document.getElementById("q");
-  const stack = document.getElementById("stack");
-  const epEl = document.getElementById("ep");
-  const sentence = document.getElementById("sentence");
-  const lost = document.getElementById("lost");
-  const product = document.getElementById("product");
-
-  const stages = [
-    ["Released", "headworks", 1],
-    ["After conveyance", "Ec", null],
-    ["At field inlet", "Ec × Eb", null],
-    ["At the crop", "Ep", null]
-  ];
-
   function clamp(v) {
     v = Number(v);
-    if (!Number.isFinite(v)) return 0.5;
-    return Math.min(1, Math.max(0.05, v));
+    if (!Number.isFinite(v)) return null;
+    return Math.min(1, Math.max(0.05, Math.round(v * 100) / 100));
   }
-  function fmt(v) { return v.toFixed(2); }
+  function fmt(v) { return Number(v).toFixed(2); }
   function vol(v) { return Math.round(v).toLocaleString("en-US"); }
 
-  function bind(range, num) {
-    range.addEventListener("input", () => { num.value = fmt(range.value); render(); });
-    num.addEventListener("input", () => {
-      const v = clamp(num.value);
-      range.value = v;
-      render();
-    });
+  function pair(id) {
+    return {
+      range: document.getElementById(id),
+      num: document.getElementById(id + "-n")
+    };
   }
-  bind(ec, ecN); bind(eb, ebN); bind(ea, eaN);
-  q.addEventListener("input", render);
 
-  document.querySelectorAll(".chips").forEach((box) => {
-    box.addEventListener("click", (e) => {
-      const btn = e.target.closest("button");
-      if (!btn) return;
-      const v = btn.dataset.v;
-      if (box.dataset.target === "ec") {
-        ec.value = v; ecN.value = fmt(v);
-      } else {
-        ea.value = v; eaN.value = fmt(v);
-        box.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b === btn ? "true" : "false"));
-      }
-      document.querySelectorAll(".preset").forEach((b) => b.setAttribute("aria-pressed", "false"));
-      render();
-    });
-  });
-
-  document.getElementById("ex-low").addEventListener("click", () => setExample(0.9, 0.8, 0.55, "ex-low"));
-  document.getElementById("ex-high").addEventListener("click", () => setExample(0.9, 0.8, 0.80, "ex-high"));
-
-  function setExample(a, b, c, id) {
-    ec.value = a; ecN.value = fmt(a);
-    eb.value = b; ebN.value = fmt(b);
-    ea.value = c; eaN.value = fmt(c);
-    document.querySelectorAll(".preset").forEach((btn) => btn.setAttribute("aria-pressed", btn.id === id ? "true" : "false"));
-    document.querySelectorAll("#methods button").forEach((btn) => {
-      btn.setAttribute("aria-pressed", Number(btn.dataset.v) === c ? "true" : "false");
-    });
+  function fromSlider(id) {
+    const p = pair(id);
+    p.num.value = fmt(p.range.value);
     render();
   }
 
-  function render() {
-    const Ec = clamp(ecN.value);
-    const Eb = clamp(ebN.value);
-    const Ea = clamp(eaN.value);
-    const Q = Math.max(1, Number(q.value) || 1000);
-    const afterC = Ec;
-    const afterB = Ec * Eb;
-    const Ep = Ec * Eb * Ea;
-    const amounts = [1, afterC, afterB, Ep];
+  function fromNumber(id) {
+    const p = pair(id);
+    const v = clamp(p.num.value);
+    if (v == null) return;
+    p.range.value = v;
+    render();
+  }
 
-    stack.innerHTML = stages.map((s, i) => {
+  function nudge(id, delta) {
+    const p = pair(id);
+    const v = clamp((Number(p.range.value) || 0) + delta);
+    p.range.value = v;
+    p.num.value = fmt(v);
+    render();
+  }
+
+  function setFactor(id, value) {
+    const v = clamp(value);
+    const p = pair(id);
+    p.range.value = v;
+    p.num.value = fmt(v);
+  }
+
+  function render() {
+    const Ec = clamp(pair("ec").range.value);
+    const Eb = clamp(pair("eb").range.value);
+    const Ea = clamp(pair("ea").range.value);
+    const Q = Math.max(1, Number(document.getElementById("q").value) || 1000);
+    const amounts = [1, Ec, Ec * Eb, Ec * Eb * Ea];
+    const stages = [
+      ["Released", "headworks"],
+      ["After conveyance", "Ec"],
+      ["At field inlet", "Ec × Eb"],
+      ["At the crop", "Ep"]
+    ];
+    document.getElementById("stack").innerHTML = stages.map((s, i) => {
       const left = amounts[i] * Q;
       return `<div class="stage">
         <div class="name">${s[0]}<em>${s[1]}</em></div>
@@ -407,11 +412,40 @@
       </div>`;
     }).join("");
 
-    epEl.innerHTML = `${fmt(Ep)} <small>Ep · ${(Ep * 100).toFixed(0)}%</small>`;
-    sentence.innerHTML = `Application is <strong>${fmt(Ea)}</strong>. The scheme is not ${(Ea * 100).toFixed(0)} percent efficient. It is <strong>${fmt(Ep)}</strong>, because the losses upstream never left the equation.`;
-    lost.textContent = `${vol(Q - Ep * Q)} m³ of the ${vol(Q)} m³ released does not reach the root zone.`;
-    product.textContent = `${fmt(Ec)} × ${fmt(Eb)} × ${fmt(Ea)} = ${fmt(Ep)}`;
+    const Ep = amounts[3];
+    document.getElementById("ep").innerHTML = `${fmt(Ep)} <small>Ep · ${(Ep * 100).toFixed(0)}%</small>`;
+    document.getElementById("sentence").innerHTML = `Application is <strong>${fmt(Ea)}</strong>. The scheme is not ${(Ea * 100).toFixed(0)} percent efficient. It is <strong>${fmt(Ep)}</strong>, because the losses upstream never left the equation.`;
+    document.getElementById("lost").textContent = `${vol(Q - Ep * Q)} m³ of the ${vol(Q)} m³ released does not reach the root zone.`;
+    document.getElementById("product").textContent = `${fmt(Ec)} × ${fmt(Eb)} × ${fmt(Ea)} = ${fmt(Ep)}`;
   }
+
+  document.querySelectorAll(".chips").forEach((box) => {
+    box.addEventListener("click", (e) => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+      if (box.dataset.target === "ec") setFactor("ec", btn.dataset.v);
+      else {
+        setFactor("ea", btn.dataset.v);
+        box.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b === btn ? "true" : "false"));
+      }
+      document.querySelectorAll(".preset").forEach((b) => b.setAttribute("aria-pressed", "false"));
+      render();
+    });
+  });
+
+  function setExample(a, b, c, id) {
+    setFactor("ec", a);
+    setFactor("eb", b);
+    setFactor("ea", c);
+    document.querySelectorAll(".preset").forEach((btn) => btn.setAttribute("aria-pressed", btn.id === id ? "true" : "false"));
+    document.querySelectorAll("#methods button").forEach((btn) => {
+      btn.setAttribute("aria-pressed", Number(btn.dataset.v) === c ? "true" : "false");
+    });
+    render();
+  }
+  document.getElementById("ex-low").addEventListener("click", () => setExample(0.9, 0.8, 0.55, "ex-low"));
+  document.getElementById("ex-high").addEventListener("click", () => setExample(0.9, 0.8, 0.80, "ex-high"));
+  document.getElementById("q").addEventListener("input", render);
   render();
 </script>
 </body>
